@@ -7,7 +7,55 @@ from datetime import timezone
 
 import pytest
 
-from app.models import Item
+from app.models import Item, User
+
+
+# ---------------------------------------------------------------------------
+# User model
+# ---------------------------------------------------------------------------
+
+
+class TestUserModel:
+    def test_create_user_with_required_fields(self, db):
+        user = User(email="a@b.com", password_hash="x")
+        db.session.add(user)
+        db.session.flush()
+        assert user.id is not None
+
+    def test_set_and_check_password(self, db):
+        user = User(email="pw@test.com")
+        user.set_password("secret123")
+        db.session.add(user)
+        db.session.flush()
+        assert user.check_password("secret123") is True
+        assert user.check_password("wrong") is False
+
+    def test_default_role_is_user(self, db):
+        user = User(email="role@test.com", password_hash="x")
+        db.session.add(user)
+        db.session.flush()
+        assert user.role == "user"
+
+    def test_default_is_active(self, db):
+        user = User(email="active@test.com", password_hash="x")
+        db.session.add(user)
+        db.session.flush()
+        assert user.is_active is True
+
+    def test_user_repr(self, db):
+        user = User(email="repr@test.com", password_hash="x")
+        db.session.add(user)
+        db.session.flush()
+        assert "repr@test.com" in repr(user)
+
+    def test_email_unique_constraint(self, db):
+        u1 = User(email="dup@test.com", password_hash="x")
+        u2 = User(email="dup@test.com", password_hash="y")
+        db.session.add(u1)
+        db.session.flush()
+        db.session.add(u2)
+        with pytest.raises(Exception):  # IntegrityError
+            db.session.flush()
 
 
 # ---------------------------------------------------------------------------
@@ -19,7 +67,7 @@ class TestItemModel:
     def test_create_item_with_required_fields(self, db):
         item = Item(name="Test Item", price=5.0)
         db.session.add(item)
-        db.session.flush()  # assigns id without committing
+        db.session.flush()
         assert item.id is not None
 
     def test_item_repr(self, db):
@@ -47,6 +95,18 @@ class TestItemModel:
         db.session.flush()
         assert item.is_available is True
 
+    def test_default_category(self, db):
+        item = Item(name="Cat", price=1.0)
+        db.session.add(item)
+        db.session.flush()
+        assert item.category == "general"
+
+    def test_default_status(self, db):
+        item = Item(name="Stat", price=1.0)
+        db.session.add(item)
+        db.session.flush()
+        assert item.status == "active"
+
     def test_created_at_set_on_insert(self, db):
         item = Item(name="Timestamped", price=1.0)
         db.session.add(item)
@@ -71,6 +131,8 @@ class TestItemModel:
             description="Detailed description",
             price=12.50,
             quantity=5,
+            category="electronics",
+            status="inactive",
             is_available=False,
         )
         db.session.add(item)
@@ -81,6 +143,8 @@ class TestItemModel:
         assert fetched.description == "Detailed description"
         assert fetched.price == 12.50
         assert fetched.quantity == 5
+        assert fetched.category == "electronics"
+        assert fetched.status == "inactive"
         assert fetched.is_available is False
 
     def test_item_can_be_deleted(self, db):
@@ -99,6 +163,18 @@ class TestItemModel:
         db.session.add_all([a, b])
         db.session.flush()
         assert a.id != b.id
+
+    def test_item_owner_relationship(self, db):
+        user = User(email="owner@test.com")
+        user.set_password("password123")
+        db.session.add(user)
+        db.session.flush()
+
+        item = Item(name="Owned", price=1.0, created_by=user.id)
+        db.session.add(item)
+        db.session.flush()
+
+        assert item.owner.id == user.id
 
 
 # ---------------------------------------------------------------------------
