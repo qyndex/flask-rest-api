@@ -8,7 +8,10 @@ class UserSchema(Schema):
     id = fields.Int(dump_only=True)
     email = fields.Email(required=True)
     password = fields.Str(required=True, load_only=True, validate=validate.Length(min=8, max=128))
-    full_name = fields.Str(load_default="", validate=validate.Length(max=200))
+    full_name = fields.Str(
+        load_default="",
+        validate=[validate.Length(max=200), validate.Regexp(r"\S")],
+    )
     role = fields.Str(dump_only=True)
     is_active = fields.Bool(dump_only=True)
     created_at = fields.DateTime(dump_only=True)
@@ -25,7 +28,10 @@ class ItemSchema(Schema):
     """Schema for serialising/deserialising Item objects."""
 
     id = fields.Int(dump_only=True)
-    name = fields.Str(required=True, validate=validate.Length(min=1, max=200))
+    name = fields.Str(
+        required=True,
+        validate=[validate.Length(min=1, max=200), validate.Regexp(r"\S")],
+    )
     description = fields.Str(load_default="")
     price = fields.Float(required=True, validate=validate.Range(min=0))
     quantity = fields.Int(load_default=0, validate=validate.Range(min=0))
